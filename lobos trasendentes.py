@@ -308,20 +308,34 @@ def verificar_y_hacer_clic_reinicio():
 
 def ejecutar_secuencia_retirada():
     print("[Anti-Bloqueo] Iniciando secuencia de retirada por atascamiento...")
-    try:
-        pos_pausa = localizar_en_emulador("pausa.png", confidence=0.70)
-        if pos_pausa:
-            clic_en_zona_aleatoria(pos_pausa)
-            pos_retirada = localizar_en_emulador("retirada.png", confidence=0.70) or localizar_en_emulador("retiradaestra.png", confidence=0.70)
-
+    intentos = 0
+    while intentos < 5:
+        try:
+            # Buscar el botón de pausa de forma iterativa y estricta
+            pos_pausa = localizar_en_emulador("pausa.png", confidence=0.65)
+            if pos_pausa:
+                print("[Anti-Bloqueo] Botón de pausa encontrado. Dando clic...")
+                clic_en_zona_aleatoria(pos_pausa)
+                time.sleep(1.0)
+            
+            # Buscar y hacer clic en retirada o retiradaestra
+            pos_retirada = localizar_en_emulador("retirada.png", confidence=0.65) or localizar_en_emulador("retiradaestra.png", confidence=0.65)
             if pos_retirada:
+                print("[Anti-Bloqueo] Botón de retirada encontrado. Dando clic...")
                 clic_en_zona_aleatoria(pos_retirada)
-                pos_aceptar = localizar_en_emulador("aceptarretirada.png", confidence=0.70)
+                time.sleep(1.0)
+                
+                # Aceptar la retirada
+                pos_aceptar = localizar_en_emulador("aceptarretirada.png", confidence=0.65)
                 if pos_aceptar:
+                    print("[Anti-Bloqueo] Aceptando retirada...")
                     clic_en_zona_aleatoria(pos_aceptar)
                     return True
-    except Exception as e:
-        print(f"[Error Secuencia] Excepción durante la retirada: {e}")
+        except Exception as e:
+            print(f"[Error Secuencia] Excepción durante la retirada: {e}")
+        
+        intentos += 1
+        time.sleep(0.8)
     return False
 
 def controlling_atascamiento(fase_actual):
@@ -334,9 +348,12 @@ def controlling_atascamiento(fase_actual):
         contador_fase_atascada = 1
 
     if contador_fase_atascada >= LIMITE_ATASCADO:
-        print(f"[ALERTA] ¡Atascado en '{fase_actual}'!")
+        print(f"[ALERTA] ¡Atascado en '{fase_actual}'! Superado el límite de {LIMITE_ATASCADO} iteraciones.")
         if ejecutar_secuencia_retirada():
             contador_fase_atascada = 0
+            global ya_hizo_clic_lobo_f1, ya_hizo_clic_lobo_f2
+            ya_hizo_clic_lobo_f1 = False
+            ya_hizo_clic_lobo_f2 = False
 
 # ==========================================
 # BUCLE PRINCIPAL
@@ -368,6 +385,9 @@ while True:
             # ----------------------------------------------------
             if fase_ganadora == "fase1":
                 controlling_atascamiento("Fase 1")
+                if contador_fase_atascada == 0:
+                    continue # Salta si se acaba de ejecutar la retirada
+                    
                 if localizar_en_emulador("miturno.png", confidence=0.70):
                     print("¡Es mi turno en la Fase 1!")
 
@@ -401,6 +421,9 @@ while True:
             # ----------------------------------------------------
             elif fase_ganadora == "fase2":
                 controlling_atascamiento("Fase 2")
+                if contador_fase_atascada == 0:
+                    continue # Salta si se acaba de ejecutar la retirada
+                    
                 if localizar_en_emulador("miturno.png", confidence=0.70):
                     print("¡Es mi turno en la Fase 2!")
 
@@ -471,6 +494,9 @@ while True:
             # ----------------------------------------------------
             elif fase_ganadora == "fase3":
                 controlling_atascamiento("Fase 3")
+                if contador_fase_atascada == 0:
+                    continue # Salta si se acaba de ejecutar la retirada
+                    
                 if localizar_en_emulador("miturno.png", confidence=0.70):
                     print("¡Es mi turno en la Fase 3!")
                     
@@ -502,7 +528,6 @@ while True:
                                     else:
                                         break  
                     else:
-                        # FASE 3 NORMAL: Se usa la función para priorizar la de más a la izquierda para s2_thonar.png
                         for carta in CONJUNTO_1_F3:
                             if cartas_lanzadas >= MAX_CARTAS_POR_TURNO:
                                 break
