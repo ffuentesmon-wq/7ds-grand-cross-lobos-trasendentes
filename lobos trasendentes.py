@@ -36,6 +36,46 @@ RUNS_OBJETIVO = pedir_objetivo_runs()
 runs_completadas = 0
 
 # ==========================================
+# VENTANA FLOTANTE DE ESTADO Y CONTROL
+# ==========================================
+class VentanaEstado:
+    def __init__(self, objetivo):
+        self.root = tk.Tk()
+        self.root.title("Control - Lobos Trascendentes")
+        self.root.geometry("240x130")
+        self.root.attributes("-topmost", True)
+        self.root.resizable(False, False)
+        
+        self.label_titulo = tk.Label(self.root, text="Estado del Bot", font=("Arial", 10, "bold"))
+        self.label_titulo.pack(pady=8)
+        
+        self.label_contador = tk.Label(self.root, text=f"Runs completadas: 0 / {objetivo}", font=("Arial", 10))
+        self.label_contador.pack(pady=5)
+        
+        self.btn_cerrar = tk.Button(self.root, text="Cerrar Bot", command=self.cerrar, bg="#d9534f", fg="white", font=("Arial", 9, "bold"), relief="raised")
+        self.btn_cerrar.pack(pady=8, ipadx=10)
+        
+        self.root.protocol("WM_DELETE_WINDOW", self.cerrar)
+
+    def actualizar(self, completadas, objetivo):
+        try:
+            self.label_contador.config(text=f"Runs completadas: {completadas} / {objetivo}")
+            self.root.update_idletasks()
+            self.root.update()
+        except Exception:
+            pass
+
+    def cerrar(self):
+        print("[Bot] Detenido manualmente por el usuario desde la ventana de control.")
+        try:
+            self.root.destroy()
+        except:
+            pass
+        sys.exit()
+
+ventana_estado = VentanaEstado(RUNS_OBJETIVO)
+
+# ==========================================
 # CONFIGURACIÓN DE ADB Y BLUESTACKS
 # ==========================================
 PUERTO_BLUESTACKS = 5555
@@ -75,14 +115,11 @@ device = conectar_adb()
 # MAPEOS DE CARTAS Y VARIABLES GLOBALES
 # ==========================================
 
-# --- FASE 1 (ORDEN MODIFICADO) ---
 CONJUNTO_F1_RIGIDO = ["s1_thonar.png", "s1_roxy.png", "s1_subaru.png", "s2_riyo.png"]
 
-# --- FASE 2 (ulty_subaru REMOVIDA) ---
 CONJUNTO_1_F2 = ["s1_thonar.png", "s1_riyo.png", "ulty_riyo.png", "ulty_thonar.png", "ulty_roxy.png", "s1_subaru.png", "s1_roxy.png"]
 CONJUNTO_2_F2 = ["s2_subaru.png", "s2_riyo.png", "s2_roxy.png", "s2_thonar.png"]
 
-# --- FASE 3 (ulty_subaru REMOVIDA DE C2 Y C3) ---
 CONJUNTO_1_F3 = ["ulty_riyo.png", "ulty_roxy.png", "ulty_thonar.png", "s1_thonar.png", "s1_riyo.png", "s1_subaru.png", "s1_roxy.png"]
 CONJUNTO_2_F3 = ["s2_subaru.png", "s2_riyo.png", "s2_roxy.png", "s2_thonar.png"]
 CONJUNTO_3_F3 = ["s2_thonar.png", "s2_riyo.png", "s2_roxy.png", "s2_subaru.png", "s1_roxy.png", "s1_subaru.png", "s1_riyo.png", "s1_thonar.png"]
@@ -92,7 +129,6 @@ contador_fase_atascada = 0
 LIMITE_ATASCADO = 20  
 MAX_CARTAS_POR_TURNO = 4
 
-# --- BANDERAS PARA CLIC ÚNICO POR FASE ---
 ya_hizo_clic_lobo_f1 = False
 ya_hizo_clic_lobo_f2 = False
 
@@ -196,7 +232,6 @@ def espera_humana():
 def clic_en_zona_aleatoria(posicion_caja):
     left, top, width, height = posicion_caja[:4]
     
-    # Se utiliza el 60% central de la imagen (20% de margen)
     margen_x = int(width * 0.20)
     margen_y = int(height * 0.20)
     
@@ -282,6 +317,8 @@ def controlling_atascamiento(fase_actual):
 # ==========================================
 while True:
     try:
+        ventana_estado.actualizar(runs_completadas, RUNS_OBJETIVO)
+
         puntuaciones_fases = {}
         pantalla_actual = capturar_pantalla_emulador()
         
@@ -302,9 +339,6 @@ while True:
         if mejor_puntuacion >= 0.75:
             print(f"[Análisis] Fase identificada: {fase_ganadora.upper()} (Coincidencia: {mejor_puntuacion*100:.1f}%)")
             
-            # ----------------------------------------------------
-            # EJECUCIÓN FASE 1
-            # ----------------------------------------------------
             if fase_ganadora == "fase1":
                 controlling_atascamiento("Fase 1")
                 if localizar_en_emulador("miturno.png", confidence=0.70):
@@ -336,9 +370,6 @@ while True:
                     if cartas_lanzadas < MAX_CARTAS_POR_TURNO and localizar_en_emulador("miturno.png", confidence=0.70):
                         ejecutar_clics_turno_fijos(verificar_reinicio=(cartas_lanzadas == 0))
 
-            # ----------------------------------------------------
-            # EJECUCIÓN FASE 2
-            # ----------------------------------------------------
             elif fase_ganadora == "fase2":
                 controlling_atascamiento("Fase 2")
                 if localizar_en_emulador("miturno.png", confidence=0.70):
@@ -357,7 +388,6 @@ while True:
 
                     cartas_lanzadas = 0
 
-                    # AGOTAR CONJUNTO 1 EN FASE 2
                     for carta in CONJUNTO_1_F2:
                         if cartas_lanzadas >= MAX_CARTAS_POR_TURNO:
                             break
@@ -380,7 +410,6 @@ while True:
                                 else:
                                     break  
 
-                    # AGOTAR CONJUNTO 2 EN FASE 2
                     if cartas_lanzadas < MAX_CARTAS_POR_TURNO:
                         for carta in CONJUNTO_2_F2:
                             if cartas_lanzadas >= MAX_CARTAS_POR_TURNO:
@@ -407,9 +436,6 @@ while True:
                     if cartas_lanzadas < MAX_CARTAS_POR_TURNO and localizar_en_emulador("miturno.png", confidence=0.70):
                         ejecutar_clics_turno_fijos(verificar_reinicio=(cartas_lanzadas == 0))
 
-            # ----------------------------------------------------
-            # EJECUCIÓN FASE 3
-            # ----------------------------------------------------
             elif fase_ganadora == "fase3":
                 controlling_atascamiento("Fase 3")
                 if localizar_en_emulador("miturno.png", confidence=0.70):
@@ -443,7 +469,6 @@ while True:
                                     else:
                                         break  
                     else:
-                        # Evaluar todo el Conjunto 1 primero
                         for carta in CONJUNTO_1_F3:
                             if cartas_lanzadas >= MAX_CARTAS_POR_TURNO:
                                 break
@@ -454,7 +479,6 @@ while True:
                                 cartas_lanzadas += 1
                                 contador_fase_atascada = 0
 
-                        # Si faltan cartas por tirar, pasar al Conjunto 2
                         if cartas_lanzadas < MAX_CARTAS_POR_TURNO:
                             for carta in CONJUNTO_2_F3:
                                 if cartas_lanzadas >= MAX_CARTAS_POR_TURNO:
@@ -469,9 +493,6 @@ while True:
                     if cartas_lanzadas < MAX_CARTAS_POR_TURNO and localizar_en_emulador("miturno.png", confidence=0.70):
                         ejecutar_clics_turno_fijos(verificar_reinicio=(cartas_lanzadas == 0))
 
-        # ----------------------------------------------------
-        # MENÚS GENERALES Y REINICIO DE BANDERAS DE CLIC
-        # ----------------------------------------------------
         else:
             botones_menu = ["menuvictoria.png", "aceptarvictoria.png", "aceptarderrota.png", "menuderrota.png", "usar.png", "comenzar.png", "aceptarusarelemento.png"]
             encontrado = False
@@ -494,9 +515,9 @@ while True:
                         print(f" ¡RUN COMPLETADA! (Progreso: {runs_completadas}/{RUNS_OBJETIVO})")
                         print("="*60)
                         
+                        ventana_estado.actualizar(runs_completadas, RUNS_OBJETIVO)
+                        
                         if runs_completadas >= RUNS_OBJETIVO:
-                            root = tk.Tk()
-                            root.withdraw()
                             messagebox.showinfo("Bot Finalizado", f"¡Objetivo cumplido!\nSe completaron con éxito {runs_completadas} runs.")
                             sys.exit()
                     break
